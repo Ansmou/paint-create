@@ -32,14 +32,14 @@
   #mapScr{position:absolute;inset:0;overflow-y:auto;padding:calc(58px + env(safe-area-inset-top)) 12px 24px;z-index:10}
   .lvlHead{margin:12px 2px 6px;font-size:1rem;color:#5a4a3a}
   .lvlHead small{font-weight:600;color:#a08a6f;font-size:.7rem;margin-left:6px}
-  #chGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
-  .chTile{border:3px solid #d9c8b0;border-radius:18px;background:#fffdf8;padding:8px 6px 7px;text-align:center;
+  .chGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px}
+  .chTile{border:2.5px solid #d9c8b0;border-radius:14px;background:#fffdf8;padding:5px 4px 5px;text-align:center;
           cursor:pointer;position:relative;box-shadow:0 3px 8px rgba(90,70,50,.1)}
   .chTile:active{transform:scale(.95)}
   .chTile.locked{opacity:.5;filter:grayscale(.4)}
   .chTile .num{position:absolute;top:-9px;left:-6px;background:#6f9c62;color:#fff;border-radius:999px;
                font-size:.62rem;font-weight:700;padding:2px 8px}
-  .chTile .thumb{width:100%;aspect-ratio:1;border-radius:12px;border:2px solid #eadbc4;background:#fff}
+  .chTile .thumb{width:100%;aspect-ratio:1;border-radius:10px;border:2px solid #eadbc4;background:#fff}
   .chTile .t{font-size:.64rem;font-weight:700;color:#5a4a3a;margin-top:4px;line-height:1.1}
   .chTile .st{font-size:.7rem;margin-top:1px;letter-spacing:1px}
   .chTile.next{border-color:#ffb64d;box-shadow:0 0 0 3px rgba(255,182,77,.35)}
@@ -63,7 +63,7 @@
   #pad canvas{display:block;width:100%;height:100%}
   #tools{flex:0 0 auto;padding:6px 8px calc(8px + env(safe-area-inset-bottom));z-index:15}
   .toolRow{display:flex;gap:6px;align-items:center;justify-content:center;margin-bottom:6px;flex-wrap:wrap}
-  .tool{width:44px;height:40px;border:2.5px solid #d9c8b0;border-radius:12px;background:#fffdf8;font-size:1.05rem;
+  .tool{width:44px;height:40px;touch-action:manipulation;border:2.5px solid #d9c8b0;border-radius:12px;background:#fffdf8;font-size:1.05rem;
         display:flex;align-items:center;justify-content:center;cursor:pointer}
   .tool.on{border-color:#e29b2c;background:#ffd98f}
   .tool.sz{font-size:.62rem;font-weight:800;color:#6b5b4a}
@@ -608,6 +608,11 @@ function fitPad(){
 }
 addEventListener('resize',fitPad);
 let drawing=false,last=null,strokes=0,coloursUsed=new Set();
+let lastUpAt=0,lastUpPos=null;
+function shouldCoalesce(p){
+  const now=performance.now();
+  return lastUpPos&&now-lastUpAt<450&&Math.hypot(p.x-lastUpPos.x,p.y-lastUpPos.y)<48;
+}
 let undoStack=[],redoStack=[];
 function pushUndo(){
   undoStack.push(cv.toDataURL());
@@ -619,15 +624,17 @@ function restore(url,cb){
   img.onload=()=>{ctx.clearRect(0,0,800,800);ctx.drawImage(img,0,0);cb&&cb();};
   img.src=url;
 }
-$('undoBtn').addEventListener('click',()=>{
-  if(!undoStack.length)return sPop();
+$('undoBtn').addEventListener('pointerup',()=>{
+  if(!undoStack.length){toast('Nothing to undo yet! ✏️');sPop();return;}
   redoStack.push(cv.toDataURL());
-  restore(undoStack.pop());sPop();
+  restore(undoStack.pop());
+  sPop();toast('↩️ Undo!');
 });
-$('redoBtn').addEventListener('click',()=>{
-  if(!redoStack.length)return sPop();
+$('redoBtn').addEventListener('pointerup',()=>{
+  if(!redoStack.length){toast('Nothing to redo!');sPop();return;}
   undoStack.push(cv.toDataURL());
-  restore(redoStack.pop());sPop();
+  restore(redoStack.pop());
+  sPop();toast('↪️ Redo!');
 });
 $('clearBtn').addEventListener('click',()=>{
   pushUndo();ctx.clearRect(0,0,800,800);sPop();
@@ -667,7 +674,8 @@ pad.addEventListener('pointerdown',e=>{
   e.preventDefault();audioInit();
   const p=padPt(e);
   if(S.tool==='fill'){pushUndo();floodFill(Math.round(p.x),Math.round(p.y));sSlosh();strokes++;return;}
-  pushUndo();drawing=true;last=p;strokes++;
+  if(!shouldCoalesce(p))pushUndo();
+  drawing=true;last=p;strokes++;
   drawDot(p);
   try{pad.setPointerCapture(e.pointerId);}catch(err){}
 });
@@ -684,7 +692,7 @@ pad.addEventListener('pointermove',e=>{
   if(S.tool!=='erase')coloursUsed.add(S.colour);
   last=p;
 });
-const endStroke=e=>{drawing=false;};
+const endStroke=e=>{if(drawing){lastUpAt=performance.now();lastUpPos=last;}drawing=false;};
 pad.addEventListener('pointerup',endStroke);pad.addEventListener('pointercancel',endStroke);
 function drawDot(p){
   ctx.fillStyle=S.colour;
