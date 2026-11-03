@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#f6efe6">
+<title>🎨 Paint &amp; Create — draw and paint challenges!</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;overflow:hidden;font-family:'Quicksand','Segoe UI',sans-serif;color:#4a3f35;
+       background:#f6efe6;display:flex;justify-content:center;align-items:center}
+  #stage{position:relative;width:100vw;height:100vh;height:100dvh;overflow:hidden;
+         background:linear-gradient(180deg,#f9f3e9 0%,#f2e7d8 55%,#eadbc4 100%)}
+  #stage::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:70;opacity:.45;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .3 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* ---------- top bars ---------- */
+  .bar{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:8px;
+       padding:calc(8px + env(safe-area-inset-top)) 10px 6px}
+  .pill{background:rgba(255,252,246,.92);border:2.5px solid #d9c8b0;border-radius:999px;
+        padding:5px 12px;font-weight:700;font-size:.82rem;color:#6b5b4a;box-shadow:0 2px 6px rgba(90,70,50,.12)}
+  .ibtn{font-family:inherit;font-weight:700;font-size:.8rem;border:2.5px solid #d9c8b0;background:rgba(255,252,246,.92);
+        border-radius:999px;padding:5px 12px;color:#6b5b4a;cursor:pointer}
+  .ibtn.on{background:#ffb64d;border-color:#e29b2c;color:#5a3d1c}
+  .grow{flex:1}
+
+  /* ---------- map screen ---------- */
+  #mapScr{position:absolute;inset:0;overflow-y:auto;padding:calc(58px + env(safe-area-inset-top)) 12px 24px;z-index:10}
+  .lvlHead{margin:12px 2px 6px;font-size:1rem;color:#5a4a3a}
+  .lvlHead small{font-weight:600;color:#a08a6f;font-size:.7rem;margin-left:6px}
+  #chGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+  .chTile{border:3px solid #d9c8b0;border-radius:18px;background:#fffdf8;padding:8px 6px 7px;text-align:center;
+          cursor:pointer;position:relative;box-shadow:0 3px 8px rgba(90,70,50,.1)}
+  .chTile:active{transform:scale(.95)}
+  .chTile.locked{opacity:.5;filter:grayscale(.4)}
+  .chTile .num{position:absolute;top:-9px;left:-6px;background:#6f9c62;color:#fff;border-radius:999px;
+               font-size:.62rem;font-weight:700;padding:2px 8px}
+  .chTile .thumb{width:100%;aspect-ratio:1;border-radius:12px;border:2px solid #eadbc4;background:#fff}
+  .chTile .t{font-size:.64rem;font-weight:700;color:#5a4a3a;margin-top:4px;line-height:1.1}
+  .chTile .st{font-size:.7rem;margin-top:1px;letter-spacing:1px}
+  .chTile.next{border-color:#ffb64d;box-shadow:0 0 0 3px rgba(255,182,77,.35)}
+  .chTile.next::after{content:'NEXT ▶';position:absolute;top:-9px;right:-4px;background:#ffb64d;color:#5a3d1c;
+               border-radius:999px;font-size:.55rem;font-weight:800;padding:2px 7px}
+  .achRow{display:flex;gap:6px;flex-wrap:wrap;margin:4px 2px 0}
+  .ach{font-size:.68rem;font-weight:700;border:2px solid #d9c8b0;border-radius:999px;padding:3px 9px;
+       background:#fffdf8;color:#a08a6f}
+  .ach.on{background:#ffd98f;border-color:#e29b2c;color:#5a3d1c}
+
+  /* ---------- paint screen ---------- */
+  #paintScr{position:absolute;inset:0;display:none;flex-direction:column;z-index:10}
+  #paintScr.show{display:flex}
+  #refBox{margin:2px auto 4px;width:92px;height:92px;border-radius:14px;border:3px solid #d9c8b0;background:#fff;
+          overflow:hidden;cursor:pointer;box-shadow:0 3px 8px rgba(90,70,50,.15);flex:0 0 auto}
+  #refBox canvas{width:100%;height:100%;display:block}
+  #refLbl{text-align:center;font-size:.6rem;font-weight:700;color:#a08a6f;margin:-2px 0 4px}
+  #canvasWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px;position:relative}
+  #pad{position:relative;background:#fff;border-radius:16px;box-shadow:0 8px 22px rgba(90,70,50,.22);
+       border:3px solid #d9c8b0;overflow:hidden;touch-action:none}
+  #pad canvas{display:block;width:100%;height:100%}
+  #tools{flex:0 0 auto;padding:6px 8px calc(8px + env(safe-area-inset-bottom));z-index:15}
+  .toolRow{display:flex;gap:6px;align-items:center;justify-content:center;margin-bottom:6px;flex-wrap:wrap}
+  .tool{width:44px;height:40px;border:2.5px solid #d9c8b0;border-radius:12px;background:#fffdf8;font-size:1.05rem;
+        display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .tool.on{border-color:#e29b2c;background:#ffd98f}
+  .tool.sz{font-size:.62rem;font-weight:800;color:#6b5b4a}
+  .tool svg{width:20px;height:20px}
+  #palette{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+  .swatch{width:34px;height:34px;border-radius:50%;border:3px solid #fffdf8;cursor:pointer;
+          box-shadow:0 2px 5px rgba(90,70,50,.25);position:relative}
+  .swatch.sel{border-color:#5a3d1c;transform:scale(1.18)}
+  .swatch.sel::after{content:'';position:absolute;inset:-7px;border:2.5px dashed #ffb64d;border-radius:50%}
+  #submitBtn{display:block;margin:8px auto 0;font-family:inherit;font-weight:800;font-size:1rem;border:none;
+        border-radius:999px;padding:11px 30px;background:linear-gradient(180deg,#c98d94,#b76e79);color:#fff;
+        cursor:pointer;box-shadow:0 5px 0 #97525e}
+  #submitBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #97525e}
+
+  /* ---------- overlays ---------- */
+  .ov{position:absolute;inset:0;background:rgba(74,59,44,.55);display:none;align-items:center;justify-content:center;
+      z-index:40;padding:16px}
+  .ov.show{display:flex}
+  .card{background:#fffdf8;border:3.5px solid #d9c8b0;border-radius:24px;max-width:360px;width:100%;
+        padding:18px 16px 16px;text-align:center;max-height:92vh;overflow-y:auto;position:relative}
+  .card h1{margin:0 0 4px;font-size:1.25rem;color:#5a4a3a}
+  .card p{margin:5px 0;font-size:.85rem;font-weight:600;line-height:1.45;color:#6b5b4a}
+  .card button{font-family:inherit;font-weight:700;font-size:.9rem;border:none;border-radius:999px;
+        padding:10px 18px;background:linear-gradient(180deg,#9db38f,#6f9c62);color:#fff;cursor:pointer;
+        box-shadow:0 4px 0 #4f7a44;margin:5px 3px 0}
+  .card button.alt{background:linear-gradient(180deg,#f0a05a,#dd7f3c);box-shadow:0 4px 0 #b55f22}
+  .card button:active{transform:translateY(3px)}
+  .card .x{position:absolute;top:10px;right:10px;border:2px solid #d9c8b0;background:#fff;border-radius:10px;
+           font-weight:800;padding:2px 9px;cursor:pointer;font-family:inherit;color:#6b5b4a}
+  #refBig{width:min(84vw,340px);border-radius:18px;border:3px solid #d9c8b0;background:#fff}
+  .hints{background:#fdf6e4;border:2px dashed #e8cf9a;border-radius:14px;padding:8px 11px;margin-top:8px;
+         font-size:.76rem;font-weight:600;color:#8a6a3f;text-align:left;line-height:1.5}
+
+  /* result */
+  #scoreDial{width:120px;height:120px;border-radius:50%;margin:6px auto;display:flex;align-items:center;justify-content:center;
+       background:conic-gradient(#ffb64d var(--p,0%),#eadbc4 0);}
+  #scoreDial .inner{width:92px;height:92px;border-radius:50%;background:#fffdf8;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;font-weight:800}
+  #scoreDial .n{font-size:1.7rem;color:#5a4a3a;line-height:1}
+  #scoreDial .d{font-size:.6rem;color:#a08a6f}
+  .starsBig{font-size:1.9rem;letter-spacing:3px;margin:2px 0}
+  .fbPos{background:#eaf6e3;border:2px solid #b9dca6;border-radius:12px;padding:7px 10px;margin-top:7px;
+         font-size:.76rem;font-weight:600;color:#3f6b2f;text-align:left;line-height:1.45}
+  .fbTip{background:#fdf0dc;border:2px dashed #e2b06a;border-radius:12px;padding:7px 10px;margin-top:6px;
+         font-size:.76rem;font-weight:600;color:#8a5a1a;text-align:left;line-height:1.45}
+  .artPair{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .artPair img{width:44%;border-radius:12px;border:2.5px solid #eadbc4;background:#fff}
+
+  /* gallery */
+  .gGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .gItem{border:2.5px solid #eadbc4;border-radius:14px;background:#fff;padding:4px}
+  .gItem img{width:100%;aspect-ratio:1;border-radius:10px;background:#fff}
+  .gItem .t{font-size:.56rem;font-weight:700;color:#6b5b4a;line-height:1.2;margin-top:2px}
+  .gEmpty{font-size:.76rem;color:#a08a6f;font-weight:600;margin-top:8px}
+
+  #toast{position:absolute;left:50%;top:40%;transform:translateX(-50%);z-index:50;display:none;
+         background:#fffdf6;border:3px solid #ffb64d;border-radius:16px;padding:10px 18px;
+         font-weight:700;color:#5a4a3a;font-size:.9rem;text-align:center;box-shadow:0 8px 20px rgba(60,45,30,.3);max-width:86%}
+  .confetti{position:absolute;inset:0;pointer-events:none;z-index:60;overflow:hidden}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- MAP SCREEN -->
+  <div class="bar" id="mapBar">
+    <span class="pill">🎨 Paint &amp; Create</span>
+    <span class="pill">⭐ <span id="totStars">0</span></span>
+    <span class="grow"></span>
+    <button class="ibtn" id="galBtn">🖼️ Gallery</button>
+  </div>
+  <div id="mapScr">
+    <div class="lvlHead">🌱 Beginner <small>simple shapes &amp; colours</small></div>
+    <div class="chGrid" id="grid1"></div>
+    <div class="lvlHead">🌳 Intermediate <small>more details &amp; backgrounds</small></div>
+    <div class="chGrid" id="grid2"></div>
+    <div class="lvlHead">🏆 Advanced <small>whole scenes</small></div>
+    <div class="chGrid" id="grid3"></div>
+    <div class="lvlHead">🏅 Awards</div>
+    <div class="achRow" id="achRow"></div>
+  </div>
+
+  <!-- PAINT SCREEN -->
+  <div id="paintScr">
+    <div class="bar">
+      <button class="ibtn" id="backBtn">◀ Map</button>
+      <span class="pill" id="chTitle">Challenge</span>
+      <span class="grow"></span>
+      <span class="pill" id="bestPill">Best: —</span>
+    </div>
+    <div style="flex:0 0 auto;text-align:center">
+      <div id="refBox"><canvas id="refThumb" width="180" height="180"></canvas></div>
+      <div id="refLbl">tap to peek 👀</div>
+    </div>
+    <div id="canvasWrap"><div id="pad"><canvas id="padCv" width="800" height="800"></canvas></div></div>
+    <div id="tools">
+      <div class="toolRow">
+        <div class="tool on" data-tool="brush" title="brush">🖌️</div>
+        <div class="tool" data-tool="fill" title="fill">🪣</div>
+        <div class="tool" data-tool="erase" title="eraser">🧽</div>
+        <div class="tool sz" data-size="7">S</div>
+        <div class="tool sz on" data-size="18">M</div>
+        <div class="tool sz" data-size="40">L</div>
+        <div class="tool sz" data-size="80">XL</div>
+        <div class="tool" id="undoBtn" title="undo">↩️</div>
+        <div class="tool" id="redoBtn" title="redo">↪️</div>
+        <div class="tool" id="clearBtn" title="clear">🗑️</div>
+      </div>
+      <div id="palette"></div>
+      <button id="submitBtn">✨ Submit my artwork!</button>
+    </div>
+  </div>
+
+  <!-- OVERLAYS -->
+  <div class="ov show" id="startOv">
+    <div class="card">
+      <h1>🎨 PAINT &amp; CREATE</h1>
+      <p>Look at the picture… then <b>draw and paint it yourself</b>!</p>
+      <p>🖌️ Pick colours &amp; brush sizes · 🪣 fill · 🧽 erase · ↩️ undo<br>When you're happy — <b>submit</b> and the friendly Art Judge will tell you what's great and what to try next!</p>
+      <p>Earn ⭐ to unlock 20 challenges — from apples to whole villages!</p>
+      <button id="btnStart">▶ LET'S PAINT!</button>
+    </div>
+  </div>
+
+  <div class="ov" id="briefOv">
+    <div class="card">
+      <button class="x" id="briefX">✕</button>
+      <h1 id="briefTitle"></h1>
+      <img id="refBig" alt="reference">
+      <p id="briefInstr"></p>
+      <div class="hints" id="briefHints"></div>
+      <button id="briefGo">🖌️ START PAINTING</button>
+    </div>
+  </div>
+
+  <div class="ov" id="peekOv">
+    <div class="card">
+      <button class="x" id="peekX">✕</button>
+      <h1 id="peekTitle">Reference</h1>
+      <img id="peekImg" style="width:min(84vw,340px);border-radius:18px;border:3px solid #d9c8b0;background:#fff" alt="">
+      <p>Take your time — look at the shapes and colours! 👀</p>
+    </div>
+  </div>
+
+  <div class="ov" id="resOv">
+    <div class="card">
+      <h1 id="resTitle">Your artwork!</h1>
+      <div id="scoreDial"><div class="inner"><div class="n" id="resScore">0</div><div class="d">out of 100</div></div></div>
+      <div class="starsBig" id="resStars">☆☆☆</div>
+      <div class="artPair"><img id="cmpRef"><img id="cmpArt"></div>
+      <div id="resFb"></div>
+      <button id="resRetry" class="alt">🔁 Try again</button>
+      <button id="resNext">Next challenge ➜</button>
+    </div>
+  </div>
+
+  <div class="ov" id="galOv">
+    <div class="card">
+      <button class="x" id="galX">✕</button>
+      <h1>🖼️ My Gallery</h1>
+      <div class="gGrid" id="galGrid"></div>
+      <div class="gEmpty" id="galEmpty">Finish a challenge to hang your first masterpiece here!</div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <div class="confetti" id="confetti"></div>
+</div>
+<script>
+(function(){
+'use strict';
+window.__errs=[];
+window.onerror=(m,s,l)=>{window.__errs.push(m+' @'+l);};
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const R=Math.random;
+
+/* ---------------- audio (no music — just studio sounds) ---------------- */
+let AC=null,master=null;
+function audioInit(){
+  if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();
+    master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);}catch(e){return null;}}
+  if(AC.state==='suspended')AC.resume();
+  return AC;
+}
+function tone(f,dur,type='sine',vol=.22,when=0,glide){
+  const ac=audioInit();if(!ac)return;
+  const t=ac.currentTime+when,o=AC.createOscillator(),g=AC.createGain();
+  o.type=type;o.frequency.setValueAtTime(f,t);
+  if(glide)o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.05);
+}
+const sClick=()=>tone(620,.05,'triangle',.16);
+const sSlosh=()=>tone(320,.12,'sine',.1,0,480);
+const sPop=()=>tone(500,.05,'triangle',.15);
+const sSubmit=()=>{tone(440,.1,'sine',.2);tone(660,.14,'sine',.2,.1);};
+const sPass=()=>{tone(523,.12,'sine',.26);tone(659,.12,'sine',.26,.11);tone(784,.12,'sine',.26,.22);tone(1047,.3,'sine',.28,.33);};
+const sNice=()=>{tone(587,.12,'sine',.22);tone(784,.2,'sine',.22,.11);};
+const sAch=()=>{tone(784,.1,'sine',.25);tone(988,.1,'sine',.25,.09);tone(1319,.25,'sine',.28,.18);};
+
+/* ---------------- palette ---------------- */
+const COLOURS=['#e2574c','#f2a33c','#ffd166','#7fc26a','#3f9d68','#5aa9e6','#3f6fc9','#b39ddb','#e88bb0','#8a5a2b','#28211c','#fffdf8'];
+
+/* ---------------- challenge library ----------------
+   draw(g) paints the reference on an 800x800 canvas (transparent bg).
+   regions: {name, x,y,w,h (0..800), pos:'where'} for element feedback. */
+function C(rr,fill,stroke){return {rr,fill,stroke};}
+const CH=[
+ {id:'apple',lvl:1,t:'Apple',instr:'Paint a big red apple with a stem and a green leaf.',
+  hints:['What shape is the body? A round ball!','The leaf sits at the top, next to the stem.'],
+  regions:[{name:'apple body',x:200,y:220,w:400,h:460,pos:'middle'},{name:'stem',x:370,y:90,w:60,h:150,pos:'top middle'},{name:'leaf',x:430,y:130,w:170,h:110,pos:'top right of the stem'}],
+  draw(g){g.fillStyle='#7a4a20';g.fillRect(385,80,30,140);
+    g.fillStyle='#5d9e45';g.beginPath();g.ellipse(520,180,95,55,-.5,0,7);g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.arc(400,450,225,0,7);g.fill();
+    g.fillStyle='rgba(255,255,255,.35)';g.beginPath();g.ellipse(330,360,55,80,-.5,0,7);g.fill();}},
+ {id:'sun',lvl:1,t:'Sunshine',instr:'Paint a happy yellow sun with orange rays all around.',
+  hints:['The sun is a circle in the middle.','The rays point OUT like a star.'],
+  regions:[{name:'sun circle',x:250,y:250,w:300,h:300,pos:'centre'},{name:'sun rays',x:60,y:60,w:680,h:680,pos:'all around the outside'}],
+  draw(g){g.strokeStyle='#f2a33c';g.lineWidth=26;g.lineCap='round';
+    for(let i=0;i<12;i++){const a=i/12*Math.PI*2;
+      g.beginPath();g.moveTo(400+Math.cos(a)*250,400+Math.sin(a)*250);
+      g.lineTo(400+Math.cos(a)*340,400+Math.sin(a)*340);g.stroke();}
+    g.fillStyle='#ffd166';g.beginPath();g.arc(400,400,190,0,7);g.fill();
+    g.fillStyle='#28211c';g.beginPath();g.arc(340,380,14,0,7);g.arc(460,380,14,0,7);g.fill();
+    g.strokeStyle='#28211c';g.lineWidth=10;g.beginPath();g.arc(400,430,60,.3,2.8);g.stroke();}},
+ {id:'balloon',lvl:1,t:'Party Balloon',instr:'Paint a red balloon on a string with a little yellow bow.',
+  hints:['Balloons are oval, wider at the top.','The string wiggles down like a wave.'],
+  regions:[{name:'balloon',x:220,y:80,w:360,h:440,pos:'upper middle'},{name:'bow',x:330,y:520,w:140,h:80,pos:'just under the balloon'},{name:'string',x:340,y:590,w:120,h:190,pos:'bottom middle'}],
+  draw(g){g.strokeStyle='#8a5a2b';g.lineWidth=8;
+    g.beginPath();g.moveTo(400,595);g.quadraticCurveTo(340,660,400,720);g.quadraticCurveTo(450,770,405,790);g.stroke();
+    g.fillStyle='#ffd166';g.beginPath();g.moveTo(400,540);g.lineTo(340,575);g.lineTo(400,600);g.lineTo(460,575);g.closePath();g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.ellipse(400,290,185,225,0,0,7);g.fill();
+    g.fillStyle='rgba(255,255,255,.35)';g.beginPath();g.ellipse(330,220,45,70,-.4,0,7);g.fill();}},
+ {id:'house',lvl:1,t:'Little House',instr:'Paint a house: square walls, triangle roof, a door and a window.',
+  hints:['The roof is a triangle on top of a square.','The door is in the middle of the walls.'],
+  regions:[{name:'walls',x:200,y:380,w:400,h:300,pos:'bottom middle'},{name:'roof',x:150,y:150,w:500,h:240,pos:'top'},{name:'door',x:340,y:520,w:120,h:160,pos:'middle of the walls'},{name:'window',x:230,y:410,w:90,h:90,pos:'left side of the walls'}],
+  draw(g){g.fillStyle='#ffd98f';g.fillRect(200,380,400,300);
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(150,390);g.lineTo(400,150);g.lineTo(650,390);g.closePath();g.fill();
+    g.fillStyle='#8a5a2b';g.fillRect(340,520,120,160);g.fillStyle='#ffd166';g.beginPath();g.arc(435,600,7,0,7);g.fill();
+    g.fillStyle='#bfe6ff';g.fillRect(230,410,90,90);g.strokeStyle='#5a4a3a';g.lineWidth=6;g.strokeRect(230,410,90,90);
+    g.beginPath();g.moveTo(275,410);g.lineTo(275,500);g.moveTo(230,455);g.lineTo(320,455);g.stroke();
+    g.fillStyle='#7fc26a';g.fillRect(470,410,90,90);g.strokeStyle='#5a4a3a';g.strokeRect(470,410,90,90);}},
+ {id:'fish',lvl:1,t:'Fishy',instr:'Paint an orange fish with a tail, fin and a bubble.',
+  hints:['The body is an oval, the tail is a triangle at the back.','One round eye near the front.'],
+  regions:[{name:'body',x:180,y:280,w:360,h:240,pos:'left-middle'},{name:'tail',x:540,y:270,w:180,h:200,pos:'right side'},{name:'eye',x:230,y:330,w:70,h:70,pos:'front of the body'},{name:'bubble',x:120,y:150,w:90,h:90,pos:'top left'}],
+  draw(g){g.fillStyle='#f2a33c';g.beginPath();g.ellipse(360,400,190,120,0,0,7);g.fill();
+    g.beginPath();g.moveTo(530,400);g.lineTo(700,290);g.lineTo(700,510);g.closePath();g.fill();
+    g.fillStyle='#e2812c';g.beginPath();g.moveTo(360,280);g.quadraticCurveTo(410,180,470,300);g.closePath();g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(265,355,32,0,7);g.fill();
+    g.fillStyle='#28211c';g.beginPath();g.arc(272,355,14,0,7);g.fill();
+    g.strokeStyle='rgba(90,160,220,.9)';g.lineWidth=7;
+    g.beginPath();g.arc(160,190,38,0,7);g.stroke();g.beginPath();g.arc(210,110,20,0,7);g.stroke();}},
+ {id:'flower',lvl:1,t:'Simple Flower',instr:'Paint a flower: yellow centre, pink petals, and a green stem with leaves.',
+  hints:['Petals go all around the centre circle.','Two leaves on the stem, one each side.'],
+  regions:[{name:'petals',x:190,y:120,w:420,h:340,pos:'top middle'},{name:'flower centre',x:320,y:250,w:160,h:160,pos:'centre of the petals'},{name:'stem',x:370,y:470,w:60,h:280,pos:'middle going down'},{name:'leaves',x:200,y:520,w:400,h:130,pos:'both sides of the stem'}],
+  draw(g){g.strokeStyle='#3f9d68';g.lineWidth=18;g.beginPath();g.moveTo(400,420);g.lineTo(400,770);g.stroke();
+    g.fillStyle='#5d9e45';g.beginPath();g.ellipse(300,600,80,35,-.5,0,7);g.fill();
+    g.beginPath();g.ellipse(500,660,80,35,.5,0,7);g.fill();
+    g.fillStyle='#e88bb0';
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;g.beginPath();g.ellipse(400+Math.cos(a)*120,290+Math.sin(a)*120,62,42,a,0,7);g.fill();}
+    g.fillStyle='#ffd166';g.beginPath();g.arc(400,290,62,0,7);g.fill();}},
+
+ {id:'houseTree',lvl:2,t:'House & Tree',instr:'Paint a house NEXT TO a big green tree, with grass below.',
+  hints:['Two main things: house on one side, tree on the other.','The tree crown is like a cloud on a trunk.'],
+  regions:[{name:'house',x:90,y:300,w:280,h:290,pos:'left'},{name:'tree trunk',x:540,y:380,w:70,h:240,pos:'middle-right going down'},{name:'tree crown',x:440,y:100,w:250,h:300,pos:'top right'},{name:'grass',x:60,y:590,w:680,h:120,pos:'along the bottom'}],
+  draw(g){g.fillStyle='#7fc26a';g.fillRect(60,590,680,120);
+    g.fillStyle='#8a5a2b';g.fillRect(540,380,70,240);
+    g.fillStyle='#3f9d68';g.beginPath();g.arc(565,220,140,0,7);g.arc(470,270,90,0,7);g.arc(660,270,90,0,7);g.fill();
+    g.fillStyle='#ffd98f';g.fillRect(100,380,250,210);
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(80,385);g.lineTo(225,260);g.lineTo(370,385);g.closePath();g.fill();
+    g.fillStyle='#8a5a2b';g.fillRect(190,480,70,110);
+    g.fillStyle='#bfe6ff';g.fillRect(120,410,60,60);g.fillRect(270,410,60,60);
+    g.fillStyle='#e2574c';g.beginPath();g.arc(565,220,12,0,7);g.arc(470,270,9,0,7);g.arc(660,270,9,0,7);g.fill();}},
+ {id:'butterfly',lvl:2,t:'Butterfly',instr:'Paint a butterfly with big colourful wings and a body between them.',
+  hints:['Wings on BOTH sides of the thin body.','Add spots to make it beautiful!'],
+  regions:[{name:'left wings',x:90,y:120,w:280,h:400,pos:'left side'},{name:'right wings',x:430,y:120,w:280,h:400,pos:'right side'},{name:'body',x:365,y:220,w:70,h:300,pos:'middle, top to bottom'},{name:'antennae',x:300,y:80,w:200,h:130,pos:'above the body'}],
+  draw(g){g.fillStyle='#f2a33c';g.beginPath();g.ellipse(240,270,150,120,-.3,0,7);g.fill();
+    g.fillStyle='#5aa9e6';g.beginPath();g.ellipse(250,470,110,95,.3,0,7);g.fill();
+    g.fillStyle='#f2a33c';g.beginPath();g.ellipse(560,270,150,120,.3,0,7);g.fill();
+    g.fillStyle='#5aa9e6';g.beginPath();g.ellipse(550,470,110,95,-.3,0,7);g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(200,250,26,0,7);g.arc(600,250,26,0,7);g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.arc(210,490,20,0,7);g.arc(590,490,20,0,7);g.fill();
+    g.fillStyle='#8a5a2b';g.beginPath();g.ellipse(400,380,26,150,0,0,7);g.fill();
+    g.strokeStyle='#8a5a2b';g.lineWidth=8;g.lineCap='round';
+    g.beginPath();g.moveTo(390,240);g.quadraticCurveTo(340,150,310,110);g.stroke();
+    g.beginPath();g.moveTo(410,240);g.quadraticCurveTo(460,150,490,110);g.stroke();
+    g.fillStyle='#8a5a2b';g.beginPath();g.arc(308,105,12,0,7);g.arc(492,105,12,0,7);g.fill();}},
+ {id:'potflower',lvl:2,t:'Flower in a Pot',instr:'Paint a flower growing in an orange pot, on a table line.',
+  hints:['The pot is like a cup that is wider at the top.','The flower points up from the pot.'],
+  regions:[{name:'flower',x:250,y:80,w:300,h:240,pos:'top'},{name:'stem',x:370,y:300,w:60,h:200,pos:'middle going down'},{name:'pot',x:260,y:480,w:280,h:220,pos:'bottom middle'},{name:'table line',x:100,y:700,w:600,h:50,pos:'along the bottom'}],
+  draw(g){g.strokeStyle='#3f9d68';g.lineWidth=16;g.beginPath();g.moveTo(400,320);g.lineTo(400,480);g.stroke();
+    g.fillStyle='#5d9e45';g.beginPath();g.ellipse(320,390,60,26,-.5,0,7);g.fill();
+    g.fillStyle='#e88bb0';
+    for(let i=0;i<6;i++){const a=i/6*Math.PI*2;g.beginPath();g.ellipse(400+Math.cos(a)*95,205+Math.sin(a)*95,52,36,a,0,7);g.fill();}
+    g.fillStyle='#ffd166';g.beginPath();g.arc(400,205,52,0,7);g.fill();
+    g.fillStyle='#f2a33c';g.beginPath();g.moveTo(260,480);g.lineTo(540,480);g.lineTo(505,700);g.lineTo(295,700);g.closePath();g.fill();
+    g.fillStyle='#e2812c';g.fillRect(248,470,304,36);
+    g.strokeStyle='#8a5a2b';g.lineWidth=10;g.beginPath();g.moveTo(100,725);g.lineTo(700,725);g.stroke();}},
+ {id:'sailboat',lvl:2,t:'Sailboat',instr:'Paint a boat with a big sail floating on blue waves.',
+  hints:['The sail is a big triangle on a stick.','The boat body curves like a smile.'],
+  regions:[{name:'sail',x:300,y:100,w:260,h:330,pos:'top middle'},{name:'mast',x:390,y:100,w:24,h:330,pos:'middle, top to bottom'},{name:'boat',x:180,y:430,w:440,h:140,pos:'middle'},{name:'waves',x:60,y:580,w:680,h:160,pos:'along the bottom'}],
+  draw(g){g.strokeStyle='#5a4a3a';g.lineWidth=14;g.beginPath();g.moveTo(400,90);g.lineTo(400,440);g.stroke();
+    g.fillStyle='#fffdf8';g.beginPath();g.moveTo(410,110);g.lineTo(560,400);g.lineTo(410,400);g.closePath();g.fill();
+    g.fillStyle='#5aa9e6';g.beginPath();g.moveTo(390,130);g.lineTo(250,400);g.lineTo(390,400);g.closePath();g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(180,440);g.quadraticCurveTo(400,510,620,440);g.lineTo(570,540);g.lineTo(230,540);g.closePath();g.fill();
+    g.strokeStyle='#5aa9e6';g.lineWidth=16;g.lineCap='round';
+    for(let i=0;i<3;i++){g.beginPath();g.moveTo(80+i*40,620+i*40);g.quadraticCurveTo(160+i*40,590+i*40,240+i*40,620+i*40);
+      g.quadraticCurveTo(320+i*40,650+i*40,400+i*40,620+i*40);
+      g.quadraticCurveTo(480+i*40,590+i*40,560+i*40,620+i*40);g.stroke();}}},
+ {id:'cat',lvl:2,t:'Cat Face',instr:'Paint a cat face: ears, eyes, nose, whiskers and a smile.',
+  hints:['Triangle ears on top of a round head.','Whiskers stick out on BOTH sides.'],
+  regions:[{name:'head',x:180,y:200,w:440,h:420,pos:'middle'},{name:'ears',x:170,y:80,w:460,h:160,pos:'top corners'},{name:'eyes',x:260,y:300,w:280,h:90,pos:'upper middle of the face'},{name:'nose',x:355,y:420,w:90,h:70,pos:'centre of the face'},{name:'whiskers',x:80,y:400,w:640,h:120,pos:'both sides of the face'}],
+  draw(g){g.fillStyle='#ffd98f';
+    g.beginPath();g.moveTo(210,230);g.lineTo(230,90);g.lineTo(350,190);g.closePath();g.fill();
+    g.beginPath();g.moveTo(590,230);g.lineTo(570,90);g.lineTo(450,190);g.closePath();g.fill();
+    g.fillStyle='#e88bb0';g.beginPath();g.moveTo(230,190);g.lineTo(245,125);g.lineTo(300,170);g.closePath();g.fill();
+    g.beginPath();g.moveTo(570,190);g.lineTo(555,125);g.lineTo(500,170);g.closePath();g.fill();
+    g.fillStyle='#ffd98f';g.beginPath();g.arc(400,420,210,0,7);g.fill();
+    g.fillStyle='#3f6fc9';g.beginPath();g.ellipse(320,380,36,46,0,0,7);g.ellipse(480,380,36,46,0,0,7);g.fill();
+    g.fillStyle='#28211c';g.beginPath();g.ellipse(320,385,14,26,0,0,7);g.ellipse(480,385,14,26,0,0,7);g.fill();
+    g.fillStyle='#e88bb0';g.beginPath();g.moveTo(370,440);g.lineTo(430,440);g.lineTo(400,478);g.closePath();g.fill();
+    g.strokeStyle='#5a4a3a';g.lineWidth=7;g.lineCap='round';
+    g.beginPath();g.moveTo(400,478);g.lineTo(400,505);g.stroke();
+    g.beginPath();g.arc(370,510,30,0,1.6);g.stroke();g.beginPath();g.arc(430,510,30,1.5,3.2);g.stroke();
+    g.strokeStyle='#fff';g.lineWidth=6;
+    [[220,420,90,400],[220,460,90,470],[580,420,710,400],[580,460,710,470]].forEach(w=>{
+      g.beginPath();g.moveTo(w[0],w[1]);g.lineTo(w[2],w[3]);g.stroke();});}},
+ {id:'rainbow',lvl:2,t:'Rainbow',instr:'Paint a rainbow with clouds at both ends.',
+  hints:['Rainbows are half-circles — red on the OUTSIDE.','A fluffy cloud under each end.'],
+  regions:[{name:'red band',x:80,y:200,w:640,h:120,pos:'top arc'},{name:'middle bands',x:100,y:300,w:600,h:180,pos:'middle arcs'},{name:'clouds',x:60,y:480,w:240,h:180,pos:'bottom left corner'},{name:'clouds',x:500,y:480,w:240,h:180,pos:'bottom right corner'}],
+  draw(g){const cols=['#e2574c','#f2a33c','#ffd166','#7fc26a','#5aa9e6','#b39ddb'];
+    cols.forEach((c,i)=>{g.strokeStyle=c;g.lineWidth=42;g.beginPath();g.arc(400,620,320-i*42,Math.PI,0);g.stroke();});
+    g.fillStyle='#fff';
+    [[170,560],[240,600],[630,560],[560,600]].forEach(p=>{g.beginPath();g.arc(p[0],p[1],58,0,7);g.fill();});}},
+ {id:'icecream',lvl:2,t:'Ice Cream',instr:'Paint an ice-cream cone with two scoops and a cherry on top.',
+  hints:['The cone is an upside-down triangle with a grid pattern.','Scoops are circles stacked up.'],
+  regions:[{name:'cone',x:270,y:440,w:260,h:320,pos:'bottom middle'},{name:'scoops',x:210,y:160,w:380,h:290,pos:'top middle'},{name:'cherry',x:365,y:110,w:70,h:70,pos:'very top'}],
+  draw(g){g.fillStyle='#f0c080';g.beginPath();g.moveTo(270,450);g.lineTo(530,450);g.lineTo(400,760);g.closePath();g.fill();
+    g.strokeStyle='#c98d4a';g.lineWidth=6;
+    for(let i=1;i<4;i++){g.beginPath();g.moveTo(270+i*15,450+i*60);g.lineTo(530-i*15,450+i*60);g.stroke();}
+    g.fillStyle='#e88bb0';g.beginPath();g.arc(320,300,95,0,7);g.fill();
+    g.fillStyle='#7fc26a';g.beginPath();g.arc(480,300,95,0,7);g.fill();
+    g.fillStyle='#ffd166';g.beginPath();g.ellipse(400,190,105,80,0,0,7);g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.arc(400,120,30,0,7);g.fill();
+    g.strokeStyle='#3f9d68';g.lineWidth=7;g.beginPath();g.moveTo(400,92);g.quadraticCurveTo(420,60,445,50);g.stroke();}},
+
+ {id:'hotair',lvl:3,t:'Hot-Air Balloon',instr:'Paint a colourful hot-air balloon flying over hills, with clouds.',
+  hints:['The balloon is a big egg shape with colourful stripes.','A small basket hangs below, with ropes.'],
+  regions:[{name:'balloon',x:220,y:60,w:360,h:380,pos:'top middle'},{name:'basket',x:350,y:520,w:100,h:100,pos:'under the balloon'},{name:'hills',x:40,y:620,w:720,h:160,pos:'along the bottom'},{name:'clouds',x:60,y:140,w:160,h:90,pos:'top left'},{name:'clouds',x:580,y:100,w:170,h:90,pos:'top right'}],
+  draw(g){g.fillStyle='#7fc26a';g.beginPath();g.moveTo(40,780);g.quadraticCurveTo(200,600,380,780);g.fill();
+    g.beginPath();g.moveTo(300,780);g.quadraticCurveTo(520,620,760,780);g.fill();
+    g.strokeStyle='#8a5a2b';g.lineWidth=6;
+    [[370,440,370,530],[430,440,430,530]].forEach(l=>{g.beginPath();g.moveTo(l[0],l[1]);g.lineTo(l[2],l[3]);g.stroke();});
+    g.fillStyle='#8a5a2b';g.fillRect(345,525,110,85);
+    g.fillStyle='#e2574c';g.beginPath();g.ellipse(400,250,175,195,0,0,7);g.fill();
+    g.fillStyle='#ffd166';g.beginPath();g.ellipse(400,250,110,195,0,0,7);g.fill();
+    g.fillStyle='#5aa9e6';g.beginPath();g.ellipse(400,250,45,195,0,0,7);g.fill();
+    g.fillStyle='#fff';[[140,180],[660,140]].forEach(p=>{g.beginPath();g.arc(p[0],p[1],44,0,7);g.arc(p[0]+38,p[1]+10,32,0,7);g.arc(p[0]-38,p[1]+12,30,0,7);g.fill();});}},
+ {id:'mountain',lvl:3,t:'Mountain Landscape',instr:'Paint tall mountains with snow caps, a sun and a green valley.',
+  hints:['Snow caps sit only on the very top of mountains.','The sun can peek from a corner.'],
+  regions:[{name:'mountains',x:60,y:160,w:680,h:400,pos:'middle'},{name:'snow caps',x:150,y:150,w:500,h:130,pos:'tops of the mountains'},{name:'sun',x:80,y:70,w:130,h:130,pos:'top left corner'},{name:'valley',x:40,y:560,w:720,h:220,pos:'along the bottom'}],
+  draw(g){g.fillStyle='#ffd166';g.beginPath();g.arc(150,140,62,0,7);g.fill();
+    g.fillStyle='#6b7f8f';g.beginPath();g.moveTo(60,560);g.lineTo(300,190);g.lineTo(540,560);g.closePath();g.fill();
+    g.fillStyle='#8296a5';g.beginPath();g.moveTo(300,560);g.lineTo(520,250);g.lineTo(740,560);g.closePath();g.fill();
+    g.fillStyle='#fffdf8';g.beginPath();g.moveTo(245,290);g.lineTo(300,190);g.lineTo(355,290);g.lineTo(320,270);g.lineTo(300,295);g.lineTo(278,272);g.closePath();g.fill();
+    g.beginPath();g.moveTo(478,335);g.lineTo(520,250);g.lineTo(562,335);g.lineTo(540,320);g.lineTo(520,340);g.lineTo(500,322);g.closePath();g.fill();
+    g.fillStyle='#7fc26a';g.beginPath();g.moveTo(40,780);g.quadraticCurveTo(400,520,760,780);g.fill();}},
+ {id:'village',lvl:3,t:'Village Scene',instr:'Paint a little village: two houses, a path, and the sun.',
+  hints:['Houses can be different sizes and colours.','A path leads from the houses to you.'],
+  regions:[{name:'sky',x:0,y:0,w:800,h:200,pos:'top'},{name:'sun',x:640,y:50,w:120,h:120,pos:'top right'},{name:'left house',x:80,y:280,w:280,h:260,pos:'left'},{name:'right house',x:430,y:330,w:260,h:210,pos:'right'},{name:'path',x:300,y:540,w:200,h:240,pos:'bottom middle'},{name:'grass',x:0,y:530,w:800,h:270,pos:'bottom'}],
+  draw(g){g.fillStyle='#bfe6ff';g.fillRect(0,0,800,300);
+    g.fillStyle='#ffd166';g.beginPath();g.arc(700,110,56,0,7);g.fill();
+    g.fillStyle='#7fc26a';g.fillRect(0,530,800,270);
+    g.fillStyle='#ffd98f';g.fillRect(90,380,250,180);
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(60,385);g.lineTo(215,270);g.lineTo(370,385);g.closePath();g.fill();
+    g.fillStyle='#8a5a2b';g.fillRect(180,460,70,100);g.fillStyle='#bfe6ff';g.fillRect(115,410,60,60);
+    g.fillStyle='#f0c080';g.fillRect(440,420,230,140);
+    g.fillStyle='#3f6fc9';g.beginPath();g.moveTo(415,425);g.lineTo(555,330);g.lineTo(695,425);g.closePath();g.fill();
+    g.fillStyle='#8a5a2b';g.fillRect(520,470,60,90);g.fillStyle='#bfe6ff';g.fillRect(580,440,55,55);
+    g.fillStyle='#d9c8b0';g.beginPath();g.moveTo(330,800);g.quadraticCurveTo(400,640,370,540);g.lineTo(430,540);g.quadraticCurveTo(400,640,470,800);g.closePath();g.fill();}},
+ {id:'rocket',lvl:3,t:'Rocket to Space',instr:'Paint a rocket blasting off between stars, with fire at the bottom.',
+  hints:['The rocket body points UP.','Flames shoot down, stars all around.'],
+  regions:[{name:'rocket body',x:310,y:150,w:180,h:340,pos:'middle pointing up'},{name:'window',x:360,y:230,w:80,h:80,pos:'top of the body'},{name:'fins',x:240,y:440,w:320,h:140,pos:'lower sides'},{name:'flames',x:330,y:570,w:140,h:180,pos:'under the rocket'},{name:'stars',x:60,y:60,w:680,h:200,pos:'top corners'}],
+  draw(g){g.fillStyle='#f2e7d8';
+    [[120,120],[680,90],[640,250],[160,300],[540,60]].forEach(p=>{star(g,p[0],p[1],18);});
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(310,480);g.lineTo(270,600);g.lineTo(340,540);g.closePath();g.fill();
+    g.beginPath();g.moveTo(490,480);g.lineTo(530,600);g.lineTo(460,540);g.closePath();g.fill();
+    g.fillStyle='#fffdf8';g.beginPath();g.moveTo(310,480);g.quadraticCurveTo(400,80,490,480);g.closePath();g.fill();
+    g.fillStyle='#e2574c';g.beginPath();g.moveTo(388,150);g.quadraticCurveTo(400,80,412,150);g.closePath();g.fill();
+    g.fillStyle='#bfe6ff';g.beginPath();g.arc(400,280,45,0,7);g.fill();
+    g.strokeStyle='#5a4a3a';g.lineWidth=7;g.stroke();
+    g.fillStyle='#f2a33c';g.beginPath();g.moveTo(350,540);g.quadraticCurveTo(400,760,450,540);g.fill();
+    g.fillStyle='#ffd166';g.beginPath();g.moveTo(375,540);g.quadraticCurveTo(400,660,425,540);g.fill();}},
+ {id:'sea',lvl:3,t:'Under the Sea',instr:'Paint an underwater scene: a fish, seaweed and bubbles.',
+  hints:['The whole picture is BLUE water.','Seaweed waves up from the sand.'],
+  regions:[{name:'water',x:0,y:0,w:800,h:520,pos:'everywhere behind'},{name:'fish',x:380,y:220,w:280,h:180,pos:'right-middle'},{name:'seaweed',x:90,y:280,w:110,h:320,pos:'left going up'},{name:'sand',x:0,y:640,w:800,h:160,pos:'along the bottom'},{name:'bubbles',x:520,y:80,w:180,h:160,pos:'top right'}],
+  draw(g){g.fillStyle='#9fd8f2';g.fillRect(0,0,800,650);
+    g.fillStyle='#f0d9a8';g.beginPath();g.moveTo(0,660);g.quadraticCurveTo(400,600,800,660);g.lineTo(800,800);g.lineTo(0,800);g.fill();
+    g.strokeStyle='#3f9d68';g.lineWidth=22;g.lineCap='round';
+    [[140,640,110,400],[210,650,190,460],[90,650,70,500]].forEach(w=>{
+      g.beginPath();g.moveTo(w[0],w[1]);g.quadraticCurveTo(w[2]-30,w[3]+80,w[2],w[3]);g.stroke();});
+    g.fillStyle='#f2a33c';g.beginPath();g.ellipse(530,300,120,75,0,0,7);g.fill();
+    g.beginPath();g.moveTo(640,300);g.lineTo(720,240);g.lineTo(720,360);g.closePath();g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(470,285,20,0,7);g.fill();
+    g.fillStyle='#28211c';g.beginPath();g.arc(476,285,9,0,7);g.fill();
+    g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=6;
+    [[600,150,16],[640,100,10],[560,80,7]].forEach(b=>{g.beginPath();g.arc(b[0],b[1],b[2],0,7);g.stroke();});}},
+ {id:'castle',lvl:3,t:'Sand Castle',instr:'Paint a castle with towers, flags and a drawbridge door.',
+  hints:['Towers are tall rectangles with triangle roofs.','Flags fly from the tops!'],
+  regions:[{name:'main walls',x:250,y:330,w:300,h:300,pos:'middle'},{name:'towers',x:120,y:180,w:160,h:450,pos:'left and right sides'},{name:'flags',x:150,y:90,w:500,h:110,pos:'very top'},{name:'door',x:350,y:470,w:100,h:160,pos:'middle of the walls'},{name:'ground',x:0,y:630,w:800,h:170,pos:'along the bottom'}],
+  draw(g){g.fillStyle='#f0d9a8';g.beginPath();g.moveTo(0,640);g.quadraticCurveTo(400,590,800,640);g.lineTo(800,800);g.lineTo(0,800);g.fill();
+    g.fillStyle='#e8c98f';g.fillRect(250,340,300,290);g.fillRect(130,220,130,410);g.fillRect(540,220,130,410);
+    g.fillStyle='#3f6fc9';g.beginPath();g.moveTo(115,225);g.lineTo(195,140);g.lineTo(275,225);g.closePath();g.fill();
+    g.beginPath();g.moveTo(525,225);g.lineTo(605,140);g.lineTo(685,225);g.closePath();g.fill();
+    g.fillStyle='#e2574c';
+    [[195,140],[605,140]].forEach(p=>{g.fillRect(p[0]-2,p[1]-46,5,46);g.beginPath();g.moveTo(p[0]+3,p[1]-44);g.lineTo(p[0]+52,p[1]-32);g.lineTo(p[0]+3,p[1]-20);g.closePath();g.fill();});
+    g.fillStyle='#8a5a2b';g.beginPath();g.moveTo(350,630);g.lineTo(350,490);g.quadraticCurveTo(400,440,450,490);g.lineTo(450,630);g.closePath();g.fill();
+    g.fillStyle='#bfe6ff';g.fillRect(300,390,60,60);g.fillRect(440,390,60,60);
+    g.strokeStyle='#5a4a3a';g.lineWidth=5;
+    [280,320,480,520].forEach(x=>{g.beginPath();g.moveTo(x,340);g.lineTo(x,300);g.lineTo(x+20,280);g.lineTo(x+40,300);g.lineTo(x+40,340);g.stroke();});}},
+ {id:'snowman',lvl:3,t:'Snowman',instr:'Paint a snowman: three balls, hat, carrot nose and snowy ground.',
+  hints:['Biggest ball at the BOTTOM.','A carrot points out where the nose is.'],
+  regions:[{name:'bottom ball',x:210,y:470,w:380,h:300,pos:'bottom middle'},{name:'head',x:300,y:170,w:200,h:200,pos:'top middle'},{name:'hat',x:300,y:80,w:200,h:110,pos:'very top'},{name:'carrot nose',x:390,y:250,w:130,h:40,pos:'middle of the head, pointing right'},{name:'snow ground',x:0,y:720,w:800,h:80,pos:'along the bottom'}],
+  draw(g){g.fillStyle='#fff';g.beginPath();g.arc(400,620,150,0,7);g.fill();
+    g.beginPath();g.arc(400,420,110,0,7);g.fill();g.beginPath();g.arc(400,270,85,0,7);g.fill();
+    g.fillStyle='#3f6fc9';g.fillRect(315,80,170,18);g.fillRect(340,0,120,85);
+    g.fillStyle='#28211c';g.beginPath();g.arc(370,250,10,0,7);g.arc(430,250,10,0,7);g.fill();
+    g.fillStyle='#f2a33c';g.beginPath();g.moveTo(400,270);g.lineTo(510,282);g.lineTo(400,296);g.closePath();g.fill();
+    g.strokeStyle='#28211c';g.lineWidth=7;g.beginPath();g.arc(400,300,26,.4,2.7);g.stroke();
+    g.fillStyle='#e2574c';g.fillRect(335,395,130,16);
+    g.strokeStyle='#8a5a2b';g.lineWidth=10;
+    g.beginPath();g.moveTo(292,420);g.lineTo(210,380);g.moveTo(292,440);g.lineTo(215,450);g.stroke();
+    g.beginPath();g.moveTo(508,420);g.lineTo(590,380);g.moveTo(508,440);g.lineTo(585,450);g.stroke();
+    g.fillStyle='#eaf4fb';g.fillRect(0,720,800,80);}},
+];
+function star(g,x,y,r){g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;
+  g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}g.closePath();g.fill();}
+
+/* ---------------- state & persistence ---------------- */
+const S={started:false,cur:-1,unlocked:1,progress:{},gallery:[],ach:{},attempts:{},lastScore:0,
+         tool:'brush',size:18,colour:'#e2574c'};
+const ACH=[
+ {id:'first',n:'First Masterpiece',d:'Submit your first painting'},
+ {id:'colours',n:'Colour Explorer',d:'Use 8+ different colours in one painting'},
+ {id:'shape',n:'Shape Detective',d:'Score 80+ for shapes'},
+ {id:'perfect',n:'Perfect Match',d:'Score 90 or more'},
+ {id:'persist',n:'Persistence Award',d:'Pass after trying 3+ times'},
+ {id:'genius',n:'Creative Genius',d:'Pass 10 challenges'},
+];
+function save(){try{localStorage.setItem('paintCreate',JSON.stringify(
+  {unlocked:S.unlocked,progress:S.progress,gallery:S.gallery.slice(0,16),ach:S.ach,attempts:S.attempts}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem('paintCreate'));
+  if(d){S.unlocked=d.unlocked||1;S.progress=d.progress||{};S.gallery=d.gallery||[];
+        S.ach=d.ach||{};S.attempts=d.attempts||{};}}catch(e){}}
+load();
+
+/* ---------------- reference rendering ---------------- */
+function refCanvas(i,size){
+  const c=document.createElement('canvas');c.width=size;c.height=size;
+  const g=c.getContext('2d');g.scale(size/800,size/800);
+  CH[i].draw(g);
+  return c;
+}
+
+/* ---------------- map screen ---------------- */
+function renderMap(){
+  $('totStars').textContent=Object.values(S.progress).reduce((a,p)=>a+(p.stars||0),0);
+  [1,2,3].forEach(l=>{
+    const grid=$('grid'+l);grid.innerHTML='';
+    CH.forEach((ch,i)=>{
+      if(ch.lvl!==l)return;
+      const locked=i+1>S.unlocked;
+      const p=S.progress[ch.id];
+      const d=document.createElement('div');
+      d.className='chTile'+(locked?' locked':'')+(!locked&&!(p&&p.passed)&&(i+1===S.unlocked||!nextLockedAfter(i))?' next':'');
+      if(!locked&&!(p&&p.passed)&&i+1<S.unlocked&&!anyNext())d.classList.add('next');
+      d.innerHTML=`<div class="num">${i+1}</div>
+        <canvas class="thumb" width="90" height="90"></canvas>
+        <div class="t">${ch.t}</div>
+        <div class="st">${p&&p.passed?'⭐'.repeat(p.stars)+'☆'.repeat(3-p.stars):'☆☆☆'}</div>`;
+      const g=d.querySelector('canvas').getContext('2d');
+      g.scale(90/800,90/800);ch.draw(g);
+      d.addEventListener('click',()=>{
+        if(locked){sClick();toast('Pass the earlier challenges to unlock this one! 🔒');return;}
+        openBrief(i);
+      });
+      grid.appendChild(d);
+    });
+  });
+  // next marker
+  const tiles=[...document.querySelectorAll('.chTile')];
+  tiles.forEach(t=>t.classList.remove('next'));
+  const nextIdx=CH.findIndex((ch,i)=>i<S.unlocked&&!(S.progress[ch.id]&&S.progress[ch.id].passed));
+  if(nextIdx>=0){const nth=tiles.find(t=>t.querySelector('.num').textContent==String(nextIdx+1));if(nth)nth.classList.add('next');}
+  // achievements
+  const row=$('achRow');row.innerHTML='';
+  ACH.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='ach'+(S.ach[a.id]?' on':'');
+    d.title=a.d;
+    d.textContent=(S.ach[a.id]?'🏅 ':'◽ ')+a.n;
+    row.appendChild(d);
+  });
+}
+function nextLockedAfter(i){return CH.some((c,j)=>j>i&&j+1>S.unlocked);}
+function anyNext(){return CH.some((c,j)=>j<S.unlocked&&!(S.progress[c.id]&&S.progress[c.id].passed));}
+
+/* ---------------- brief / reference peek ---------------- */
+let cur=0;
+function openBrief(i){
+  cur=i;sClick();
+  const ch=CH[i];
+  $('briefTitle').textContent=(i+1)+' · '+ch.t;
+  $('refBig').src=refCanvas(i,420).toDataURL();
+  $('briefInstr').textContent=ch.instr;
+  $('briefHints').innerHTML='<b>👀 Look for:</b><br>· '+ch.hints.join('<br>· ');
+  $('briefOv').classList.add('show');
+}
+$('briefGo').addEventListener('click',()=>{
+  sPop();
+  $('briefOv').classList.remove('show');
+  startChallenge(cur);
+});
+$('briefX').addEventListener('click',()=>{sClick();$('briefOv').classList.remove('show');});
+$('refBox').addEventListener('click',()=>{
+  sClick();
+  $('peekTitle').textContent=CH[cur].t;
+  $('peekImg').src=refCanvas(cur,640).toDataURL();
+  $('peekOv').classList.add('show');
+});
+$('peekX').addEventListener('click',()=>{sClick();$('peekOv').classList.remove('show');});
+
+/* ---------------- painting engine ---------------- */
+const pad=$('pad'),cv=$('padCv'),ctx=cv.getContext('2d',{willReadFrequently:true});
+ctx.lineCap='round';ctx.lineJoin='round';
+function fitPad(){
+  const wrap=$('canvasWrap');
+  const s=Math.min(wrap.clientWidth-16,wrap.clientHeight-10);
+  pad.style.width=s+'px';pad.style.height=s+'px';
+}
+addEventListener('resize',fitPad);
+let drawing=false,last=null,strokes=0,coloursUsed=new Set();
+let undoStack=[],redoStack=[];
+function pushUndo(){
+  undoStack.push(cv.toDataURL());
+  if(undoStack.length>25)undoStack.shift();
+  redoStack.length=0;
+}
+function restore(url,cb){
+  const img=new Image();
+  img.onload=()=>{ctx.clearRect(0,0,800,800);ctx.drawImage(img,0,0);cb&&cb();};
+  img.src=url;
+}
+$('undoBtn').addEventListener('click',()=>{
+  if(!undoStack.length)return sPop();
+  redoStack.push(cv.toDataURL());
+  restore(undoStack.pop());sPop();
+});
+$('redoBtn').addEventListener('click',()=>{
+  if(!redoStack.length)return sPop();
+  undoStack.push(cv.toDataURL());
+  restore(redoStack.pop());sPop();
+});
+$('clearBtn').addEventListener('click',()=>{
+  pushUndo();ctx.clearRect(0,0,800,800);sPop();
+  toast('Fresh canvas! 🎨');
+});
+document.querySelectorAll('.tool[data-tool]').forEach(t=>{
+  t.addEventListener('click',()=>{
+    sClick();S.tool=t.dataset.tool;
+    document.querySelectorAll('.tool[data-tool]').forEach(x=>x.classList.toggle('on',x===t));
+  });
+});
+document.querySelectorAll('.tool[data-size]').forEach(t=>{
+  t.addEventListener('click',()=>{
+    sClick();S.size=+t.dataset.size;
+    document.querySelectorAll('.tool[data-size]').forEach(x=>x.classList.toggle('on',x===t));
+  });
+});
+function renderPalette(){
+  const p=$('palette');p.innerHTML='';
+  COLOURS.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='swatch'+(S.colour===c?' sel':'');
+    d.style.background=c;
+    d.addEventListener('click',()=>{
+      S.colour=c;sClick();renderPalette();
+      if(S.tool==='erase'){S.tool='brush';
+        document.querySelectorAll('.tool[data-tool]').forEach(x=>x.classList.toggle('on',x.dataset.tool==='brush'));}
+    });
+    p.appendChild(d);
+  });
+}
+function padPt(e){
+  const r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)*800/r.width,y:(e.clientY-r.top)*800/r.height};
+}
+pad.addEventListener('pointerdown',e=>{
+  e.preventDefault();audioInit();
+  const p=padPt(e);
+  if(S.tool==='fill'){pushUndo();floodFill(Math.round(p.x),Math.round(p.y));sSlosh();strokes++;return;}
+  pushUndo();drawing=true;last=p;strokes++;
+  drawDot(p);
+  try{pad.setPointerCapture(e.pointerId);}catch(err){}
+});
+pad.addEventListener('pointermove',e=>{
+  if(!drawing)return;
+  const p=padPt(e);
+  ctx.strokeStyle=S.tool==='erase'?'rgba(0,0,0,1)':S.colour;
+  ctx.lineWidth=S.tool==='erase'?S.size*2.2:S.size;
+  ctx.globalCompositeOperation=S.tool==='erase'?'destination-out':'source-over';
+  ctx.beginPath();ctx.moveTo(last.x,last.y);
+  ctx.quadraticCurveTo(last.x,last.y,(last.x+p.x)/2,(last.y+p.y)/2);
+  ctx.lineTo(p.x,p.y);ctx.stroke();
+  ctx.globalCompositeOperation='source-over';
+  if(S.tool!=='erase')coloursUsed.add(S.colour);
+  last=p;
+});
+const endStroke=e=>{drawing=false;};
+pad.addEventListener('pointerup',endStroke);pad.addEventListener('pointercancel',endStroke);
+function drawDot(p){
+  ctx.fillStyle=S.colour;
+  ctx.beginPath();ctx.arc(p.x,p.y,S.size/2,0,7);ctx.fill();
+  coloursUsed.add(S.colour);
+}
+/* flood fill with tolerance */
+function floodFill(x,y){
+  if(x<0||y<0||x>=800||y>=800)return;
+  const img=ctx.getImageData(0,0,800,800),d=img.data;
+  const idx=(y*800+x)*4;
+  const tr=d[idx],tg=d[idx+1],tb=d[idx+2],ta=d[idx+3];
+  const cr=parseInt(S.colour.slice(1,3),16),cg=parseInt(S.colour.slice(3,5),16),cb=parseInt(S.colour.slice(5,7),16);
+  if(Math.abs(tr-cr)+Math.abs(tg-cg)+Math.abs(tb-cb)<12&&ta===255)return;
+  const tol=95;
+  const match=i=>{const a=d[i+3];
+    if(ta<20&&a<20)return true;
+    if(ta<20)return a<20;
+    return Math.abs(d[i]-tr)+Math.abs(d[i+1]-tg)+Math.abs(d[i+2]-tb)+Math.abs(d[i+3]-ta)*2<tol*2;};
+  const stack=[[x,y]];
+  const seen=new Uint8Array(800*800);
+  while(stack.length){
+    const [px,py]=stack.pop();
+    if(px<0||py<0||px>=800||py>=800)continue;
+    const pi=py*800+px;
+    if(seen[pi])continue;seen[pi]=1;
+    const i=pi*4;
+    if(!match(i))continue;
+    d[i]=cr;d[i+1]=cg;d[i+2]=cb;d[i+3]=255;
+    stack.push([px+1,py],[px-1,py],[px,py+1],[px,py-1]);
+  }
+  ctx.putImageData(img,0,0);
+  coloursUsed.add(S.colour);
+}
+
+/* ---------------- challenge flow ---------------- */
+function startChallenge(i){
+  cur=i;
+  ctx.clearRect(0,0,800,800);
+  undoStack.length=0;redoStack.length=0;
+  strokes=0;coloursUsed=new Set();
+  const ch=CH[i];
+  $('chTitle').textContent=(i+1)+' · '+ch.t;
+  const best=S.progress[ch.id];
+  $('bestPill').textContent='Best: '+(best?best.score:'—');
+  const rg=refCanvas(i,180);
+  const rt=$('refThumb');
+  rt.getContext('2d').clearRect(0,0,180,180);
+  rt.getContext('2d').drawImage(rg,0,0);
+  $('mapScr').style.display='none';$('mapBar').style.display='none';
+  $('paintScr').classList.add('show');
+  fitPad();
+  toast(ch.instr);
+}
+$('backBtn').addEventListener('click',()=>{
+  sClick();
+  $('paintScr').classList.remove('show');
+  $('mapScr').style.display='';$('mapBar').style.display='';
+  renderMap();
+});
+
+/* ---------------- evaluator (local vision) ---------------- */
+function evaluate(userCv,refCv){
+  const N=64;
+  const u=sample(userCv,N),r=sample(refCv,N);
+  let inter=0,uPainted=0,rPainted=0;
+  let colSum=0,colN=0;
+  let uxC=0,uyC=0,rxC=0,ryC=0;
+  for(let i=0;i<N*N;i++){
+    const up=u.A[i]>30,rp=r.A[i]>30;
+    if(up)uPainted++;
+    if(rp)rPainted++;
+    if(up&&rp){inter++;
+      const dist=Math.abs(u.R[i]-r.R[i])+Math.abs(u.G[i]-r.G[i])+Math.abs(u.B[i]-r.B[i]);
+      colSum+=Math.max(0.45,1-dist/380);colN++;
+    }
+    if(up){uxC+=i%N;uyC+=Math.floor(i/N);}
+    if(rp){rxC+=i%N;ryC+=Math.floor(i/N);}
+  }
+  if(!uPainted)return {score:0,colour:0,placement:0,shape:0,coverage:0,elements:[],empty:true};
+  const iou=rPainted?inter/(uPainted+rPainted-inter):0;
+  const colour=colN?colSum/colN:0;
+  uxC/=uPainted;uyC/=uPainted;rxC/=rPainted;ryC/=rPainted;
+  const cdist=Math.hypot(uxC-rxC,uyC-ryC)/(N*.8);
+  const position=Math.max(0,1-cdist);
+  // edges
+  const eu=edges(u,N),er=edges(r,N);
+  let eInter=0,eUnion=0;
+  for(let i=0;i<N*N;i++){if(eu[i]&&er[i])eInter++;if(eu[i]||er[i])eUnion++;}
+  const shape=eUnion?eInter/eUnion:0;
+  const coverage=rPainted?Math.min(1,inter/rPainted):0;
+  // elements
+  const elements=(CH[cur].regions||[]).map(rg=>{
+    let need=0,got=0;
+    const x0=Math.floor(rg.x/800*N),x1=Math.ceil((rg.x+rg.w)/800*N);
+    const y0=Math.floor(rg.y/800*N),y1=Math.ceil((rg.y+rg.h)/800*N);
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
+      if(x<0||y<0||x>=N||y>=N)continue;
+      const i=y*N+x;if(r.A[i]>40){need++;if(u.A[i]>30)got++;}
+    }
+    return {name:rg.name,pos:rg.pos,frac:need?got/need:1};
+  });
+  const raw=.38*colour+.24*iou+.16*shape+.22*(0.45*position+0.55*coverage);
+  const effort=uPainted/(N*N);
+  let score=Math.round(clamp(raw*100*(1+Math.min(.15,effort*.35))+8,0,100));
+  if(effort<.05)score=Math.min(score,35);
+  return {score,colour,placement:.5*iou+.5*coverage,shape,coverage,elements,effort};
+}
+function sample(cnv,N){
+  const t=document.createElement('canvas');t.width=N;t.height=N;
+  const g=t.getContext('2d');g.drawImage(cnv,0,0,N,N);
+  const d=g.getImageData(0,0,N,N).data;
+  const R=new Float32Array(N*N),G=new Float32Array(N*N),B=new Float32Array(N*N),A=new Float32Array(N*N);
+  for(let i=0;i<N*N;i++){R[i]=d[i*4];G[i]=d[i*4+1];B[i]=d[i*4+2];A[i]=d[i*4+3];}
+  return {R,G,B,A};
+}
+function edges(s,N){
+  const out=new Uint8Array(N*N);
+  for(let y=1;y<N-1;y++)for(let x=1;x<N-1;x++){
+    const i=y*N+x;
+    const lum=k=>s.A[k]/255*(.3*s.R[k]+.6*s.G[k]+.1*s.B[k]);
+    const gx=Math.abs(lum(i+1)-lum(i-1)),gy=Math.abs(lum(i+N)-lum(i-N));
+    out[i]=(gx+gy)>40?1:0;
+  }
+  return out;
+}
+
+/* ---------------- feedback builder ---------------- */
+function buildFeedback(ev){
+  const pos=[],tips=[];
+  const ch=CH[cur];
+  const seen=ev.elements.filter(e=>e.frac>=.6);
+  const missing=ev.elements.filter(e=>e.frac<.35);
+  seen.slice(0,2).forEach(e=>pos.push(`I can really see your <b>${e.name}</b> — nicely done! 🌟`));
+  if(ev.colour>.6)pos.push('Your <b>colours</b> are close to the reference — great eye! 🎨');
+  else if(ev.colour>.4)pos.push('Good colour choices — the palette is warming up! 🎨');
+  if(ev.placement>.6)pos.push('Everything sits in about the <b>right place</b> — lovely layout! 📐');
+  if(!pos.length)pos.push(`I love that you painted a <b>${ch.t.toLowerCase()}</b> — that's a great start! 🌱`);
+  missing.slice(0,2).forEach(e=>tips.push(`Look for the <b>${e.name}</b> — it lives in the <b>${e.pos}</b> of the picture. Try adding it!`));
+  if(ev.colour<.45)tips.push('Peek at the reference colours again — try to match the big colour areas first.');
+  if(ev.placement<.4&&!missing.length)tips.push('Check WHERE things are: try to fill the same areas of the page as the reference.');
+  if(ev.shape<.3)tips.push('Look at the big SHAPES first — round bits, triangle bits — before the small details.');
+  if(!tips.length)tips.push('Add small details (spots, lines, tiny bits) to get even closer to the reference!');
+  return {pos:pos.slice(0,2),tips:tips.slice(0,3)};
+}
+
+/* ---------------- submit ---------------- */
+$('submitBtn').addEventListener('click',()=>{
+  if(strokes===0){toast('Paint something first — the canvas is empty! 🎨');sPop();return;}
+  audioInit();sSubmit();
+  let ev;
+  try{ev=evaluate(cv,refCanvas(cur,800));}
+  catch(err){ev={score:70,colour:.6,placement:.6,shape:.6,coverage:.6,elements:[],fallback:true};}
+  const ch=CH[cur];
+  const prev=S.attempts[ch.id]||0;
+  const delta=prev?ev.score-prev:null;
+  S.attempts[ch.id]=ev.score;
+  const attemptN=(S.progress[ch.id]?S.progress[ch.id].tries:0)+1;
+  const passed=ev.score>=65;
+  const stars=ev.score>=88?3:ev.score>=75?2:passed?1:0;
+  // progress
+  const p=S.progress[ch.id]||{passed:false,stars:0,score:0,tries:0};
+  p.tries++;
+  const firstPass=!p.passed&&passed;
+  if(passed){p.passed=true;p.stars=Math.max(p.stars,stars);p.score=Math.max(p.score,ev.score);}
+  else p.score=Math.max(p.score,ev.score);
+  S.progress[ch.id]=p;
+  if(passed)S.unlocked=Math.max(S.unlocked,cur+2);
+  // achievements
+  const achBefore={...S.ach};
+  if(!S.ach.first)unlockAch('first');
+  if(coloursUsed.size>=8)unlockAch('colours');
+  if(ev.shape>=.8)unlockAch('shape');
+  if(ev.score>=90)unlockAch('perfect');
+  if(passed&&p.tries>=3&&firstPass)unlockAch('persist');
+  if(Object.values(S.progress).filter(x=>x.passed).length>=10)unlockAch('genius');
+  // gallery
+  if(passed&&firstPass){
+    const th=document.createElement('canvas');th.width=128;th.height=128;
+    th.getContext('2d').drawImage(cv,0,0,128,128);
+    S.gallery.unshift({t:ch.t,s:stars,sc:ev.score,img:th.toDataURL('image/jpeg',.62)});
+    S.gallery=S.gallery.slice(0,16);
+  }
+  save();
+  // UI
+  const fb=buildFeedback(ev);
+  $('resTitle').textContent=passed?(stars===3?'Amazing artwork! 🏆':stars===2?'Great job! 😊':'Challenge passed! 🌟'):'Almost there! 💪';
+  $('resScore').textContent=ev.score;
+  $('scoreDial').style.setProperty('--p',ev.score+'%');
+  $('scoreDial').style.background=`conic-gradient(${ev.score>=65?'#7fc26a':'#f2a33c'} ${ev.score}%,#eadbc4 0)`;
+  $('resStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+  $('cmpRef').src=refCanvas(cur,240).toDataURL();
+  $('cmpArt').src=cv.toDataURL();
+  let html='';
+  if(delta!==null&&delta>0)html+=`<div class="fbPos">📈 You improved by <b>${delta} points</b> since your last try!</div>`;
+  fb.pos.forEach(t=>html+=`<div class="fbPos">${t}</div>`);
+  fb.tips.forEach(t=>html+=`<div class="fbTip">${t}</div>`);
+  if(ev.fallback)html+='<div class="fbTip">The Art Judge is napping — here\'s a star for your effort! ⭐</div>';
+  $('resFb').innerHTML=html;
+  $('resNext').style.display=passed&&cur+1<CH.length?'':'none';
+  $('resOv').classList.add('show');
+  if(passed){sPass();confettiBurst();}
+  else sNice();
+  // announce newly-earned achievements
+  setTimeout(()=>{
+    ACH.forEach(a=>{if(S.ach[a.id]&&!achBefore[a.id])toast('🏅 Award earned: <b>'+a.n+'</b>!');});
+  },passed?1600:600);
+});
+S.unlockedMax=function(){return S.unlocked;};
+function unlockAch(id){S.ach[id]=true;sAch();}
+$('resRetry').addEventListener('click',()=>{
+  sClick();$('resOv').classList.remove('show');
+  // keep canvas for improving!
+  toast('Improve it — or clear and start fresh! ✏️');
+});
+$('resNext').addEventListener('click',()=>{
+  sClick();$('resOv').classList.remove('show');
+  $('paintScr').classList.remove('show');
+  $('mapScr').style.display='';$('mapBar').style.display='';
+  renderMap();
+  toast('New challenge unlocked! 🎉');
+});
+
+/* ---------------- gallery ---------------- */
+$('galBtn').addEventListener('click',()=>{sClick();renderGallery();$('galOv').classList.add('show');});
+$('galX').addEventListener('click',()=>{sClick();$('galOv').classList.remove('show');});
+function renderGallery(){
+  const g=$('galGrid');g.innerHTML='';
+  $('galEmpty').style.display=S.gallery.length?'none':'block';
+  S.gallery.forEach(it=>{
+    const d=document.createElement('div');d.className='gItem';
+    d.innerHTML=`<img src="${it.img}"><div class="t">${it.t}<br>${'⭐'.repeat(it.s)} ${it.sc}/100</div>`;
+    g.appendChild(d);
+  });
+}
+
+/* ---------------- misc ---------------- */
+function toast(html){
+  const t=$('toast');
+  t.innerHTML=html;t.style.display='block';
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.style.display='none',2600);
+}
+function confettiBurst(){
+  const box=$('confetti');
+  const cols=['#e2574c','#ffd166','#7fc26a','#5aa9e6','#b39ddb'];
+  for(let i=0;i<40;i++){
+    const c=document.createElement('div');
+    c.style.cssText=`position:absolute;left:${R()*100}%;top:-14px;width:9px;height:14px;border-radius:3px;
+      background:${cols[i%5]};transform:rotate(${R()*360}deg);`;
+    box.appendChild(c);
+    let y=0,x=0,vy=3+R()*4,vx=(R()-.5)*3;
+    const iv=setInterval(()=>{
+      y+=vy;vy+=.12;x+=vx;
+      c.style.transform=`translate(${x}px,${y}px) rotate(${y*3}deg)`;
+      if(y>window.innerHeight+30){clearInterval(iv);c.remove();}
+    },16);
+  }
+}
+
+/* ---------------- start ---------------- */
+$('btnStart').addEventListener('click',()=>{
+  audioInit();sPass();
+  $('startOv').classList.remove('show');
+  S.started=true;
+  renderMap();
+  toast('Pick a challenge — start with the apple! 🍎');
+});
+renderPalette();renderMap();
+
+/* ---------------- test hooks ---------------- */
+window.__pc={
+  S,CH,evaluate,buildFeedback,
+  start(){document.getElementById('btnStart').click();},
+  open(i){openBrief(i);document.getElementById('briefGo').click();},
+  submit(){document.getElementById('submitBtn').click();},
+  retry(){document.getElementById('resRetry').click();},
+  setTool(t){S.tool=t;},
+  setColour(c){S.colour=c;},
+  setSize(n){S.size=n;},
+  /* draw a stroke from (x1,y1) to (x2,y2) in 800-space using current tool */
+  stroke(x1,y1,x2,y2,steps){
+    pushUndo();
+    for(let i=0;i<=steps;i++){
+      const x=x1+(x2-x1)*i/steps,y=y1+(y2-y1)*i/steps;
+      ctx.fillStyle=S.colour;
+      ctx.globalCompositeOperation=S.tool==='erase'?'destination-out':'source-over';
+      ctx.beginPath();ctx.arc(x,y,S.size/2,0,7);ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+      if(S.tool!=='erase')coloursUsed.add(S.colour);
+    }
+    strokes++;
+  },
+  fill(x,y){floodFill(x,y);},
+  clear(){ctx.clearRect(0,0,800,800);},
+  copyRef(i){ /* simulate a perfect copy for testing */
+    ctx.clearRect(0,0,800,800);
+    ctx.drawImage(refCanvas(i,800),0,0);
+    strokes=10;
+  },
+  undo(){document.getElementById('undoBtn').click();},
+};
+})();
+</script>
+</body>
+</html>
